@@ -46,11 +46,32 @@ errors and missing depth information for pixels a problem
 
 \subsection{Static Reconstruction}
 
-KinectFustion paper goes here
+\subsubsection{KinectFusion}
+
+truncated signed distance field
+
+iterative closest point (ICP) algorithm takes two point clouds and returns the rigid transformation which aligns them best
+
+
+\subsubsection{static example 2}
+
+\subsubsection{static example 3}
 
 \subsection{Offline Non-rigid Reconstruction}
 
-more research required about this
+
+talk about immense demands here, how its actually really hard to get it all done in real time
+
+\subsubsection{People doing the group project}
+
+implementation of dynamic fusion but offline
+
+\subsubsection{completion of dynamic shapes}
+
+no canonical model, only compares with models in adjacent frames
+
+
+\subsubsection{offline example 3}
 
 \subsection{Real-time Non-rigid Reconstruction}
 
@@ -58,19 +79,14 @@ several methods have been proposed for performing reconstruction of a non-rigid 
 here are a few:
 
 \subsubsection{Dynamic Fusion}
-
-warp field
-
-\subsubsection{Volume Deform}
-
-this might have an additional section at the beginning 
-
-128 dimensional SIFT descriptor
-robust to transformations
+based off kinectfusion
 
 \subsubsection{Killing Fusion}
 
 killing vector field
+
+\subsubsection{Volume Deform}
+
 
 \section{Technical Details}
 
