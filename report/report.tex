@@ -24,6 +24,8 @@
 \maketitle
 \section{Introduction}
 
+\subsection{Motivation}
+
 The reconstruction of 3-dimensional scenes using RGB-D data has been the subject of a lot of research recently. Due to the wide range of applications in fields such as Robotics and Augmented Reality, it has gained much interest.
 
 However, most existing systems are designed only to reconstruct static geometry. This leads to hard limitations in the adaptability of the system to a changing environment. Worse still, highly deformable or dynamic objects such as a moving person cannot be reconstructed at all by a static system.
@@ -42,11 +44,11 @@ The first and most fundamental element of the system is the sensor used to obtai
 However, they provide high quality information considering their price. This is provided to the system in the form of an ordinary RGB image, augmented with a fourth parameter indicating the perceived depth from the camera at that pixel. Using the available depth information, it is also possible to compute the normal to the surface at each pixel of the image. In some cases, depth information may be missing at certain pixels, producing so-called `holes' in the depth image. Errors such as these are not difficult to overcome but must be handled.
 
 
-The sensor is capable of producing an RGB-D image to the system in 640x480 resolution at up to 30Hz. This is important, as it determines the amount of information that can be added to the system at each update. Additionally, it places a hard limit on the framerate of the system, which can never exceed the sensor rate.
+The sensor is capable of producing an RGB-D image to the system in 640x480 resolution at up to 30Hz. This is important, as it determines the amount of information that can be added to the system at each update. Additionally, it places a hard limit on the update rate of the system, which can never exceed the sensor rate.
 
 \subsection{Point Cloud Correspondences}
 
-Once all errors and noise have been removed from the RGB-D image, they can be converted into a point cloud, which forms the input to the system at each update. Every point in the cloud is considered to lie on the surface of the object that is being reconstructed. 
+Once all noise has been removed from the RGB-D image, it can be converted into a point cloud, which forms the input to the system at each update. Every point in the cloud is considered to lie on the surface of the object that is being reconstructed. 
 
 The main task of the system, which has been approached using multiple methods, is to find correspondences between the point clouds obtained at each update. These correspondences can be used to resolve all the data obtained into one model, which is the target surface for reconstruction.
 
@@ -55,14 +57,8 @@ The main task of the system, which has been approached using multiple methods, i
 
 KinectFusion provides one such method for determining correspondences between point clouds. It makes one very important assumption: that the surface it is reconstructing is rigid, and will not be deformed while it is being observed by the system. While this is a very restricted approach to the problem, this algorithm laid the groundwork for later non-rigid systems such as DynamicFusion.
 
-
-\subsubsection{Principles of operation}
-
-Initially, a pre-processing phase occurs, where depth and normal maps are constructed from the input data. The system then enters a continuously updating loop with three stages.
-
-\begin{enumerate}
-\item \textbf{Sensor pose estimation}: KinectFusion uses the Iterative Closest Point (ICP) algorithm to align its prediction of the surface with the actual measurements of the surface it receives. This is a widely used algorithm in this field which has been optimised and adapted for many purposes. Its purpose is simply to take two point clouds and return the transform which most closely aligns the two clouds. The transform that is returned is rigid, which functions perfectly for this algorithm, but requires adaptation for a non-rigid case. 
-
+\subsubsection{Iterative Closest Point algorithm}
+This is a widely used algorithm in this field which has been optimised and adapted for many purposes. Its purpose is simply to take two point clouds and return the transformation which most closely aligns the two clouds.
 Psuedo-code for the ICP algorithm is shown below:
 
 \begin{lstlisting}[language=Python]
@@ -78,10 +74,16 @@ def ICP(P, Q):
     return transform
 \end{lstlisting}
 
+\subsubsection{Principles of operation}
+
+Initially, a pre-processing phase occurs, where depth and normal maps are constructed from the input data. The system then enters a continuously updating loop with three stages.
+
+\begin{enumerate}
+\item \textbf{Sensor pose estimation}: KinectFusion uses the ICP algorithm to align its prediction of the surface with the actual measurements of the surface it receives. The transform that is returned is rigid, which functions perfectly for this algorithm, but requires adaptation for a non-rigid case. 
 
 \item \textbf{Update surface reconstruction}: Here, the system receives input from the sensor, which it uses to create a truncated signed distance function (TSDF) for that live frame. Together with the TSDFs from previous frames, a composite TSDF is created to represent the system's model of the scene. This composite TSDF is discretised into a 2-dimensional array and stored in global GPU memory.
 
-\item \textbf{Surface prediction}: At this stage KinectFusion will produce its own depth map by ray-casting against its own model of the scene. This produces a prediction of what it expects the scene to look like. The loop then continues, using the updated predicition to estimate the new sensor pose.
+\item \textbf{Surface prediction}: At this stage KinectFusion will produce its own depth map by ray-casting against its own model of the scene. This produces a prediction of what it expects the scene to look like. 
 \end{enumerate}
 
 
@@ -89,13 +91,50 @@ def ICP(P, Q):
 
 The main limitation of the KinectFusion system is that it fails to handle deforming geometry. If a surface is not completely static then it will fail to reconstruct it.  
 
-\subsection{Non-rigid Reconstruction}
 
-There have been several methods proposed for the reconstruction of non-rigid surfaces. The three that are examined below all take inspiration from KinectFusion; each of them builds on what KinectFusion originally produced, and they also provide successive improvements over each other. Although they have a similar structure in terms of the methods they use, they each approach the problem from a different angle.
+There have been several methods proposed for the reconstruction of non-rigid surfaces. DynamicFusion is the most 
 
-\subsubsection{DynamicFusion}
+\subsection{DynamicFusion}
 
-DynamicFusion was the first system to apply the approach of KinectFusion to a non-rigid surface. It inspired the two following methods, which are both based on DynamicFusion.\\ 
+DynamicFusion was the first system to achieve dense, dynamic scene reconstruction in real-time. Both VolumeDeform and KillingFusion were heavily inspired by or based on DynamicFusion.
+
+\subsubsection{Warp field}
+
+The warp field is essentially a set of deformation nodes, each of which is denoted:
+
+$$\mathcal{N}^t_{\textbf{warp}}=\{ \textbf{dg}_v, \textbf{dg}_w, \textbf{dg}_{se3} \}$$
+
+Where the parameters refer to:
+
+\begin{itemize}
+\item $\textbf{dg}_v$: The position vector of the deformation node
+
+\item $\textbf{dg}_w$: The radius of influence of the node, which determines the strength of the application of the transformation to the node's neighbours
+
+\item $\textbf{dg}_{se3}$: The transformation of the deformation node, represented using dual quaternions
+\end{itemize}
+
+
+\subsubsection{Dual quaternions}
+
+3
+
+
+\subsubsection{Dual quaternion blending}
+
+KD-Tree
+
+$$\mathcal{W}(x_c) = SE3(\textbf{DQB}(x_c))$$
+
+$$\textbf{DQB}(x_c) = \frac{\sum_{k \in N(x_c)} \textbf{w}_k(x_c)\hat{\textbf{q}}_{kc}}{\Vert \sum_{k \in N(x_c)} \textbf{w}_k(x_c)\hat{\textbf{q}}_{kc} \Vert}$$
+
+\subsubsection{Warp function}
+
+6
+
+\subsubsection{Surface fusion}
+
+7
 
 \noindent\textbf{Principles of operation}
 
@@ -109,11 +148,18 @@ $$E(\mathcal{W}_t, \mathcal{V}, D_t, \mathcal{E}) = \textbf{Data}(\mathcal{W}_t,
 
 This function consists of two terms:
 \begin{itemize}
-\item $\textbf{Data}(\mathcal{W}_t, \mathcal{V}_t, D_t)$ - representing the ICP cost between the model and the live frame, similar to KinectFusion.
-\item $\textbf{Reg}(\mathcal{W}_t, \mathcal{E})$ - a term which regularises the warp field. This ensures that motion is as smooth as possible, and that deformation is as rigid as possible.
+\item $\textbf{Data}(\mathcal{W}_t, \mathcal{V}_t, D_t) = \sum\limits_{u \in \Omega} \psi_{data}(\hat{\textbf{n}}_u^\top (\hat{\textbf{v}}_u - \textbf{vl}_u))$ 
+
+This term represents the ICP cost between the model and the live frame. This step is similar to KinectFusion, although it uses a non-rigid version of ICP.
+
+\item $\textbf{Reg}(\mathcal{W}_t, \mathcal{E}) = \sum\limits_{i=0}^n\sum\limits_{j \in \mathcal{E}(i)}\alpha_{ij}\psi_{reg}(\textbf{T}_{ic}\textbf{dg}^j_v - \textbf{T}_{jc}\textbf{dg}^j_v)$ 
+
+This term which regularises the warp field. This ensures that motion is as smooth as possible, and that deformation is as rigid as possible.
 \end{itemize}
 
 Additionally, the $\lambda$ parameter can be adjusted to determine the relative importance of each term to the error function as a whole.
+
+$E$ is minimised using Gauss-Newton non-linear optimisation.
 
 \item \textbf{Surface fusion}: Using the estimated warp field, both surfaces can be warped back into the canonical model. This means they occupy the same space relative to each other, so can be directly compared.
 
@@ -127,7 +173,7 @@ DynamicFusion is quite limited by its handling of topology changes; the method i
 It is also limited by unusual changes in motion. For example, it will struggle with large inter-frame motion, or the motion of occluded parts of the surface.
 
 
-\subsubsection{VolumeDeform}
+\subsection{VolumeDeform}
 
 VolumeDeform is different to the other examined techniques in that it doesn't rely solely on depth information. It also uses the RGB data probided by the sensor to extract additional information about the live frame.\\ 
 
@@ -152,7 +198,7 @@ VolumeDeform comes with several limitations. Firstly, the feature tracking provi
 Additionally, high levels of deformation are not handled well by the system, due to over-distribution of deformation. This is as a result of the regularizer used by the system, which does not account for local rigidity.
 
 
-\subsubsection{KillingFusion}
+\subsection{KillingFusion}
 
 KillingFusion operates very similarly to DynamicFusion, but introduces a much more sophisticated error function for estimating the warp field.
 
@@ -160,15 +206,17 @@ KillingFusion operates very similarly to DynamicFusion, but introduces a much mo
 E_{non-rigid}(\Psi) &= E_{data}(\Psi) + \omega_kE_{Killing}(\Psi) + \omega_sE_{level-set}(\Psi)\\
 E'_{data}(\Psi) &= (\phi_n(\Psi) - \phi_{global}) \nabla_{\phi_n}(\Psi)\\
 E'_{Killing}(\Psi) &= 2H_{uvw}(vec(J^{\top}_{\Psi}) vec\big(J_{\Psi})\big)\begin{pmatrix}1\\\gamma \end{pmatrix}\\
-E'_{level-set}(\Psi) &= \frac{|\nabla_{\phi_n}(\Psi)| - 1}{|\nabla_{\phi_n}(\Psi)|_\epsilon}H_{\phi_n(\Psi)}\nabla_{\phi_n}(\Psi)
+E'_{level-set}(\Psi) &= \frac{|\nabla_{\phi_n}(\Psi)| - 1}{|\nabla_{\phi_n}(\Psi)|_\epsilon}H_{\phi_n}(\Psi)\nabla_{\phi_n}(\Psi)
 \end{align*}
 
 This error function imposes three requirements on a potential solution:
 \begin{itemize}
-\item \textbf{Data term}: Similar to DynamicFusion, contains a component for rigid transformation. Minimising this term simply minimises distance between voxels.
-\item \textbf{Killing condition}: This term requires the flow field to be a Killing vector field. That is, in order for it generate an isometric motion it must satisfy this condition. Since a perfect isometric motion would impose only rigid transformations, this term only needs to be minimised so that the motion is approximately rigid. Additionally, the requirement has been weakened to make it computationally more efficient.
+\item \textbf{Data term}: Similar to DynamicFusion, contains a component for non-rigid transformation. 
+\item \textbf{Killing condition}: This term requires the flow field to be a Killing vector field. If it satisifies this condition, then it will produce isometric motion Since a perfect isometric motion would impose only rigid transformations, this term only needs to be minimised so that the motion is approximately rigid. Additionally, the requirement has been weakened to make it computationally more efficient.
 \item \textbf{Level set property}: The minimisation of this term ensures that the gradient of the SDF function remains approximately 1
 \end{itemize}
+
+The additional parameters $\omega_k$ and $\omega_s$ are used to adjust the relative importance of the three terms when calculating $E_{non-rigid}$.
 
 This error function is also much more easily parallelised, leading to greatly increased performance.\\
 
