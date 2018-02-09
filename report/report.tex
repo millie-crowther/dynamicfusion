@@ -12,89 +12,215 @@
 %% Useful packages
 \usepackage{amsmath}
 \usepackage{graphicx}
+\usepackage{listings}
 \usepackage[colorinlistoftodos]{todonotes}
 \usepackage[colorlinks=true, allcolors=blue]{hyperref}
 
-\title{Your Paper}
+\title{Real-time reconstruction of non-rigid objects from RGBD data: Interim Report}
 \author{Amelia Gordafarid Crowther}
 
 \begin{document}
 
-\begin{abstract}
-Your abstract.
-\end{abstract}
-
+\maketitle
 \section{Introduction}
+
+The reconstruction of 3-dimensional scenes using RGB-D data has been the subject of a lot of research recently. Due to the wide range of applications in fields such as Robotics and Augmented Reality, it has gained much interest.
+
+However, most existing systems are designed only to reconstruct static geometry. This leads to hard limitations in the adaptability of the system to a changing environment. Worse still, highly deformable or dynamic objects such as a moving person cannot be reconstructed at all by a static system.
+
+There has been a lot of interest in techniques for non-rigid reconstruction, but despite it being a hot research topic, few implementations of proposed systems are widely available. 
+
+The aim of this project is to provide such an implementation that can reconstruct a rigid object from a  non-rigid scene in real-time.
+
 
 \section{Background}
 
 \subsection{Kinect Camera}
 
-talk about input to system, explain rgbd etc
+The first and most fundamental element of the system is the sensor used to obtain information about the surface to be reconstructed. The most commonly used sensor for this purpose is the Kinect camera. Originally designed as a commodity level camera for home games consoles, it was available directly to consumers. This means that Kinect cameras are widely and cheaply available to use.
 
-single camera used
-
-commodity level, not specialist equipment, available directly to consumers
-
-cheap and easily available
-
-depth information good for price
-
-30Hz 640x480 colour and depth
-
-errors and missing depth information for pixels a problem
-
-\subsection{Static Reconstruction}
-
-\subsubsection{KinectFusion}
-
-truncated signed distance field
-
-iterative closest point (ICP) algorithm takes two point clouds and returns the rigid transformation which aligns them best
+However, they provide high quality information considering their price. This is provided to the system in the form of an ordinary RGB image, augmented with a fourth parameter indicating the perceived depth from the camera at that pixel. Using the available depth information, it is also possible to compute the normal to the surface at each pixel of the image. In some cases, depth information may be missing at certain pixels, producing so-called `holes' in the depth image. Errors such as these are not difficult to overcome but must be handled.
 
 
-\subsubsection{static example 2}
+The sensor is capable of producing an RGB-D image to the system in 640x480 resolution at up to 30Hz. This is important, as it determines the amount of information that can be added to the system at each update. Additionally, it places a hard limit on the framerate of the system, which can never exceed the sensor rate.
 
-\subsubsection{static example 3}
+\subsection{Point Cloud Correspondences}
 
-\subsection{Offline Non-rigid Reconstruction}
+Once all errors and noise have been removed from the RGB-D image, they can be converted into a point cloud, which forms the input to the system at each update. Every point in the cloud is considered to lie on the surface of the object that is being reconstructed. 
 
-
-talk about immense demands here, how its actually really hard to get it all done in real time
-
-\subsubsection{People doing the group project}
-
-implementation of dynamic fusion but offline
-
-\subsubsection{completion of dynamic shapes}
-
-no canonical model, only compares with models in adjacent frames
+The main task of the system, which has been approached using multiple methods, is to find correspondences between the point clouds obtained at each update. These correspondences can be used to resolve all the data obtained into one model, which is the target surface for reconstruction.
 
 
-\subsubsection{offline example 3}
+\subsection{KinectFusion}
 
-\subsection{Real-time Non-rigid Reconstruction}
-
-several methods have been proposed for performing reconstruction of a non-rigid surface in real-time.
-here are a few:
-
-\subsubsection{Dynamic Fusion}
-based off kinectfusion
-
-\subsubsection{Killing Fusion}
-
-killing vector field
-
-\subsubsection{Volume Deform}
+KinectFusion provides one such method for determining correspondences between point clouds. It makes one very important assumption: that the surface it is reconstructing is rigid, and will not be deformed while it is being observed by the system. While this is a very restricted approach to the problem, this algorithm laid the groundwork for later non-rigid systems such as DynamicFusion.
 
 
-\section{Technical Details}
+\subsubsection{Principles of operation}
 
-\section{Evaluation}
+Initially, a pre-processing phase occurs, where depth and normal maps are constructed from the input data. The system then enters a continuously updating loop with three stages.
 
-\section{Conclusions}
+\begin{enumerate}
+\item \textbf{Sensor pose estimation}: KinectFusion uses the Iterative Closest Point (ICP) algorithm to align its prediction of the surface with the actual measurements of the surface it receives. This is a widely used algorithm in this field which has been optimised and adapted for many purposes. Its purpose is simply to take two point clouds and return the transform which most closely aligns the two clouds. The transform that is returned is rigid, which functions perfectly for this algorithm, but requires adaptation for a non-rigid case. 
 
-\section{Appendix}
+Psuedo-code for the ICP algorithm is shown below:
+
+\begin{lstlisting}[language=Python]
+def ICP(P, Q):
+    transform = identity
+    while not aligned(P, Q):
+        correspondence = []
+        for p in P:
+            p_t = apply(transform, p)
+            q = closest point to p_t in Q
+            correspondence += (p, q)
+        transform = least_squares(correspondence)
+    return transform
+\end{lstlisting}
+
+
+\item \textbf{Update surface reconstruction}: Here, the system receives input from the sensor, which it uses to create a truncated signed distance function (TSDF) for that live frame. Together with the TSDFs from previous frames, a composite TSDF is created to represent the system's model of the scene. This composite TSDF is discretised into a 2-dimensional array and stored in global GPU memory.
+
+\item \textbf{Surface prediction}: At this stage KinectFusion will produce its own depth map by ray-casting against its own model of the scene. This produces a prediction of what it expects the scene to look like. The loop then continues, using the updated predicition to estimate the new sensor pose.
+\end{enumerate}
+
+
+\subsubsection{Limitations}
+
+The main limitation of the KinectFusion system is that it fails to handle deforming geometry. If a surface is not completely static then it will fail to reconstruct it.  
+
+\subsection{Non-rigid Reconstruction}
+
+There have been several methods proposed for the reconstruction of non-rigid surfaces. The three that are examined below all take inspiration from KinectFusion; each of them builds on what KinectFusion originally produced, and they also provide successive improvements over each other. Although they have a similar structure in terms of the methods they use, they each approach the problem from a different angle.
+
+\subsubsection{DynamicFusion}
+
+DynamicFusion was the first system to apply the approach of KinectFusion to a non-rigid surface. It inspired the two following methods, which are both based on DynamicFusion.\\ 
+
+\noindent\textbf{Principles of operation}
+
+
+There are three key steps that occur in each iteration of the DynamicFusion algorithm, and they each take place whenever a new live frame is produced:
+
+\begin{enumerate}
+\item \textbf{Warp field estimation}: The warp field is estimated by choosing parameters such that the error function below is minimised:
+
+$$E(\mathcal{W}_t, \mathcal{V}, D_t, \mathcal{E}) = \textbf{Data}(\mathcal{W}_t, \mathcal{V}_t, D_t) + \lambda\textbf{Reg}(\mathcal{W}_t, \mathcal{E})$$ 
+
+This function consists of two terms:
+\begin{itemize}
+\item $\textbf{Data}(\mathcal{W}_t, \mathcal{V}_t, D_t)$ - representing the ICP cost between the model and the live frame, similar to KinectFusion.
+\item $\textbf{Reg}(\mathcal{W}_t, \mathcal{E})$ - a term which regularises the warp field. This ensures that motion is as smooth as possible, and that deformation is as rigid as possible.
+\end{itemize}
+
+Additionally, the $\lambda$ parameter can be adjusted to determine the relative importance of each term to the error function as a whole.
+
+\item \textbf{Surface fusion}: Using the estimated warp field, both surfaces can be warped back into the canonical model. This means they occupy the same space relative to each other, so can be directly compared.
+
+\item \textbf{Updating the canonical model}: Now that the live frame has been warped into the canonical model, points can be added or removed from the canonical model as appropriate.
+\end{enumerate}
+
+\noindent\textbf{Limitations}
+
+DynamicFusion is quite limited by its handling of topology changes; the method is robust to a change from open to closed topology, but if the surface changes from a closed topology to an open one too quickly the system will fail to reconstruct the surface.
+
+It is also limited by unusual changes in motion. For example, it will struggle with large inter-frame motion, or the motion of occluded parts of the surface.
+
+
+\subsubsection{VolumeDeform}
+
+VolumeDeform is different to the other examined techniques in that it doesn't rely solely on depth information. It also uses the RGB data probided by the sensor to extract additional information about the live frame.\\ 
+
+
+\noindent\textbf{Principles of operation}
+
+VolumeDeform operates similarly to the other methods outlined, in that it involves a loop that repeatedly acquires new knowledge and integrates it with an existing model.
+
+\begin{enumerate}
+\item \textbf{Mesh extraction}: The signed distance field representing the system's model of the scene is used to generate a deformed 3D mesh using Marching Cubes
+\item \textbf{Correspondence detection}: The mesh is rendered to produce a depth map which can be used to generate correspondences. 
+
+Additionally, SIFT features are detected in the live frame and stored by the system. Since SIFT features are robust to changes in transformation, they can be recognised again in later frames. This provides extra information to inform the process of correspondence detection. 
+
+\item \textbf{Deformation optimisation}: The deformation field is optimised so that it is consistent with the observed values of colour and depth.
+\end{enumerate}
+
+\noindent\textbf{Limitations}
+
+VolumeDeform comes with several limitations. Firstly, the feature tracking provided by the SIFT feature descriptor is not adequate when significant transformations are applied. SIFT feature descriptors are robust, but not robust enough given the computational resources available.
+
+Additionally, high levels of deformation are not handled well by the system, due to over-distribution of deformation. This is as a result of the regularizer used by the system, which does not account for local rigidity.
+
+
+\subsubsection{KillingFusion}
+
+KillingFusion operates very similarly to DynamicFusion, but introduces a much more sophisticated error function for estimating the warp field.
+
+\begin{align*}
+E_{non-rigid}(\Psi) &= E_{data}(\Psi) + \omega_kE_{Killing}(\Psi) + \omega_sE_{level-set}(\Psi)\\
+E'_{data}(\Psi) &= (\phi_n(\Psi) - \phi_{global}) \nabla_{\phi_n}(\Psi)\\
+E'_{Killing}(\Psi) &= 2H_{uvw}(vec(J^{\top}_{\Psi}) vec\big(J_{\Psi})\big)\begin{pmatrix}1\\\gamma \end{pmatrix}\\
+E'_{level-set}(\Psi) &= \frac{|\nabla_{\phi_n}(\Psi)| - 1}{|\nabla_{\phi_n}(\Psi)|_\epsilon}H_{\phi_n(\Psi)}\nabla_{\phi_n}(\Psi)
+\end{align*}
+
+This error function imposes three requirements on a potential solution:
+\begin{itemize}
+\item \textbf{Data term}: Similar to DynamicFusion, contains a component for rigid transformation. Minimising this term simply minimises distance between voxels.
+\item \textbf{Killing condition}: This term requires the flow field to be a Killing vector field. That is, in order for it generate an isometric motion it must satisfy this condition. Since a perfect isometric motion would impose only rigid transformations, this term only needs to be minimised so that the motion is approximately rigid. Additionally, the requirement has been weakened to make it computationally more efficient.
+\item \textbf{Level set property}: The minimisation of this term ensures that the gradient of the SDF function remains approximately 1
+\end{itemize}
+
+This error function is also much more easily parallelised, leading to greatly increased performance.\\
+
+
+\noindent\textbf{Limitations}
+
+KillingFusion has been shown to handle fast inter-frame motion and topological changes much better than alternatives such as DynamicFusion or VolumeDeform. This means that it is more desirable as a solution than the other methods outlined here.
+
+It does however still suffer from the same limitations as all of these methods in that it can only be applied to a small volume until further improvements to the method are made.
+
+\section{Project Plan}
+
+\subsection{Milestones}
+\begin{itemize}
+\item February: Fully understand codebase, start programming.
+\item March: Reliably estimate warp field.
+\item April: Produce correct behaviour for DynamicFusion, not necessarily real-time.
+\item May: Have code running on GPU using CUDA, produce real-time solution.
+\item 11th May: Start working on final report.
+\item June: All coding finished.
+\item 18th June: Final report submission.
+\end{itemize}
+
+\subsection{Minimum Viable Product}
+
+In a worst-case scenario, I may fail to meet the majority of the targets I set myself in terms of implementation as well as performance. In this case, I would be able to fall back on an offline implementation of DynamicFusion. This would mean I could demonstrate the functionality of the system, without needing it to operate in real-time.
+
+\subsection{Possible Extensions}
+
+As a possible extension to the project, a tool to visualise the canonical model could be produced. In particular, to see how the canonical model evolves in real-time would be very useful to the user.
+
+
+\section{Evaluation Plan}
+\subsection{Required Functionality}
+
+At a bare minimum, the system must be able to reconstruct a dynamic scene, not necessarily in real-time. 
+
+Once the correct behaviour has been implemented, then the system can be optimised to work in real-time. This is the scenario I would expect to operate in.
+
+If the project progresses well, the system could be tested under unfavourable conditions, such as large inter-frame movement or rapid topology changes. It could then be improved to handle these cases more accurately, perhaps incorporating techniques from algorithms such as KillingFusion.
+
+If the project has progressed excellently, several extensions can be pursued as outlined in the last section.
+
+
+\subsection{Performance Metrics}
+
+It is very simple to evaluate the performance of the final system, as its efficiency is clearly observable in the average framerate it achieves.
+
+Ideally, the system will be able to run live and smoothly. This would mean achieving the same framerate as the Kinect sensor, which is 30Hz.  Practically speaking, it is likely that the system will not achieve such high performance. Therefore, a reduced target framerate of approximately 10Hz or over can be considered more achievable, while still providing a live ....
+
+In the case that this target is not reached either, I will aim to produce an offline solution as a fall-back. Although the processing time will cease to be of such high importance in this scenario, it can still be used as a valid metric of the system's efficiency.
+
 
 \bibliographystyle{plain}
 \bibliography{report}
