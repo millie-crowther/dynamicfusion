@@ -1,29 +1,34 @@
 #ifndef WARP_FIELD_H
 #define WARP_FIELD_H
 
-#include <utility>
 #include <vector>
+#include "point_cloud.h"
+
+// includes for nanoflann, as well as a typedef for brevity
+#include "nanoflann/nanoflann.hpp"
+using namespace nanoflann;
+typedef KDTreeSingleIndexAdaptor<
+    L2_Simple_Adaptor<float, point_cloud_t>, 
+    point_cloud_t, 
+    3
+> kd_tree_t;
 
 class warp_field_t {
 public:
     // constructor
     warp_field_t();
 
-    //destructor
+    // destructor
     ~warp_field_t();
 
     // application of warp function to field
     frame_t warp_canonical_frame_to_live(frame_t * canonical_frame);
 
 private:
-    /*
-       constants
-    */
+    // constants
     static int NUM_NEIGHBOURS = 8;
 
-    /*
-      private fields
-    */
+    // kd-tree for efficient closest neighbour search
     kd_tree_t kd_tree;
 
     /*

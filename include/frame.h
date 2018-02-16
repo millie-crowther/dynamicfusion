@@ -1,6 +1,8 @@
 #ifndef FRAME_H
 #define FRAME_H
 
+#include "point_cloud.h"
+
 /*
     a small container class representing a frame.
     contains a unique id, and the vertex positions and normals of the frame
@@ -13,17 +15,13 @@ public:
     // destructor
     ~frame_t();
 
-    // getters
-    point_cloud_t get_vertices();
-    normal_cloud_t get_normals();
-
 private:
     // unique id for frame
     int frame_id;
 
     // point clouds storing position and normal data
-    point_cloud_t vertices;
-    normal_cloud_t normals;
+    point_cloud_t * vertices;
+    point_cloud_t normals;
 };
 
 #endif

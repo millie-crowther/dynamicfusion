@@ -1,17 +1,17 @@
 #include "warp_field.h"
 
 warp_field_t::warp_field_t(){
-
+    
 }
 
 warp_field_t::~warp_field_t(){
 
 }
 
-std::vector<std::pair<<deform_node_t *, float>>
+std::vector<deform_node_t *>
 warp_field_t::find_neighbours(int n, point_t p){
     // output parameters from knnSearch, representing the indices of the closest points
-    // and the distance to those points
+    // and the distance to those points, which for now are discarded
     size_t neighbour_indices[n];
     float neighbour_distances[n];    
 
@@ -22,9 +22,9 @@ warp_field_t::find_neighbours(int n, point_t p){
     int number_found = kd_tree.knnSearch(query, n, neighbour_indices, neighbour_distances);
     
     // create map to return
-    std::vector<std::pair<deform_node_t *, float>> result;
+    std::vector<deform_node_t *> result;
     for (int i = 0; i < number_found; i++){
-        result.emplace_back(nodes[neighbour_indices[i]], neighbour_distance[i]);
+        result.push_back(nodes[neighbour_indices[i]]);
     }
 
     return result;

@@ -1,6 +1,8 @@
+#include "dynamic_fusion.h"
 #include <iostream>
 
 int main(){
-    std::cout << "Hello World!" << std::endl;
+    dynamic_fusion_t d_fusion;
+    d_fusion.execute();
     return 0;
 }
