@@ -1,7 +1,9 @@
 #ifndef FRAME_H
 #define FRAME_H
 
-#include "point_cloud.h"
+#include "point.h"
+
+#include <vector>
 
 /*
     a small container class representing a frame.
@@ -20,8 +22,8 @@ private:
     int frame_id;
 
     // point clouds storing position and normal data
-    point_cloud_t * vertices;
-    point_cloud_t normals;
+    std::vector<point_t> vertices;
+    std::vector<point_t> normals;
 };
 
 #endif

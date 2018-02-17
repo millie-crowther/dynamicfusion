@@ -26,11 +26,11 @@
 
 \subsection{Motivation}
 
-The reconstruction of 3-dimensional scenes using RGB-D data has been the subject of a lot of research recently. Due to the wide range of applications in fields such as Robotics and Augmented Reality, it has gained much interest.
+The reconstruction of non-rigid objects is a popular area of research currently, with many useful applications in fields such as Robotics, Medicine and Augmented Reality. 
 
 However, most existing systems are designed only to reconstruct static geometry. This leads to hard limitations in the adaptability of the system to a changing environment. Worse still, highly deformable or dynamic objects such as a moving person cannot be reconstructed at all by a static system.
 
-There has been a lot of interest in techniques for non-rigid reconstruction, but despite it being a hot research topic, few implementations of proposed systems are widely available. 
+There has been a lot of interest in techniques for non-rigid reconstruction, but despite it being a popular research topic, few  implementations of these proposed systems are widely available. 
 
 The aim of this project is to provide such an implementation that can reconstruct a rigid object from a  non-rigid scene in real-time.
 
@@ -55,10 +55,10 @@ The main task of the system, which has been approached using multiple methods, i
 
 \subsection{KinectFusion}
 
-KinectFusion provides one such method for determining correspondences between point clouds. It makes one very important assumption: that the surface it is reconstructing is rigid, and will not be deformed while it is being observed by the system. While this is a very restricted approach to the problem, this algorithm laid the groundwork for later non-rigid systems such as DynamicFusion.
+KinectFusion\cite{kinectfusion} provides one such method for determining correspondences between point clouds. It makes one very important assumption: that the surface it is reconstructing is rigid, and will not be deformed while it is being observed by the system. While this is a very restricted approach to the problem, this algorithm laid the groundwork for later non-rigid systems such as DynamicFusion.
 
 \subsubsection{Iterative Closest Point algorithm}
-This is a widely used algorithm in this field which has been optimised and adapted for many purposes. Its purpose is simply to take two point clouds and return the transformation which most closely aligns the two clouds.
+Iterative Closest Point\cite{icp} (ICP) is a widely used algorithm in this field which has been optimised and adapted for many purposes. Its purpose is simply to take two point clouds and return the transformation which most closely aligns the two clouds.
 Psuedo-code for the ICP algorithm is shown below:
 
 \begin{lstlisting}[language=Python]
@@ -94,9 +94,10 @@ The main limitation of the KinectFusion system is that it fails to handle deform
 
 There have been several methods proposed for the reconstruction of non-rigid surfaces. DynamicFusion is the most 
 
+\newpage
 \subsection{DynamicFusion}
 
-DynamicFusion was the first system to achieve dense, dynamic scene reconstruction in real-time. Both VolumeDeform and KillingFusion were heavily inspired by or based on DynamicFusion.
+DynamicFusion\cite{dynamicfusion} was the first system to achieve dense, dynamic scene reconstruction in real-time. Both VolumeDeform and KillingFusion were heavily inspired by or based on DynamicFusion.
 
 \subsubsection{Warp field}
 
@@ -115,28 +116,38 @@ Where the parameters refer to:
 \end{itemize}
 
 
-\subsubsection{Dual quaternions}
-
-3
-
-
 \subsubsection{Dual quaternion blending}
 
-KD-Tree
+\textbf{Dual quaternions}
 
-$$\mathcal{W}(x_c) = SE3(\textbf{DQB}(x_c))$$
+Dual quaternions consist of eight elements providing six degrees of freedom. They are split across two quaternions, named the real and dual parts respectively.  They can be used to represent any transformation consisting of a translation and a rotation around an axis.\\
+
+\noindent\textbf{KD-Tree}
+
+
+KD-Trees\cite{kdtree} are data structures which are optimised to efficiently find the nearest neighbour to a given point, as well as all points within a range. They are very useful when performing dual quaternion blending, as they allow us to restrict the problem space to only the local deformation nodes on the surface.\\
+
+Using these definitions, we are able to define dual quaternion blending. Intuitively, it is the average of the local dual quaternions of the deformation nodes, each weighted according to their radius of influence. Here is the definition from DynamicFusion:
+
 
 $$\textbf{DQB}(x_c) = \frac{\sum_{k \in N(x_c)} \textbf{w}_k(x_c)\hat{\textbf{q}}_{kc}}{\Vert \sum_{k \in N(x_c)} \textbf{w}_k(x_c)\hat{\textbf{q}}_{kc} \Vert}$$
 
+In this context, $N(x_c)$ is the set of the $k$ nearest deformation nodes. These can be found very efficciently using a KD-Tree.
+
+$\textbf{w}_k(x_c)$ is the weight of the $k^{th}$ deformation node, which can be derived using the following formula:
+$$\textbf{w}_i(x_c) = \exp \Big(\frac{-\Vert \textbf{dg}^i_v - x_c \Vert ^2}{2(\textbf{dg}^i_w)^2}\Big)$$ 
+
 \subsubsection{Warp function}
 
-6
+Once dual quaternion blending has been applied, there is only one more step before we can produce the final warp function. The result must be converted from a quaternion back into a transformation matrix.
 
-\subsubsection{Surface fusion}
+Now we can define the warp function:
 
-7
+$$\mathcal{W}(x_c) = SE3(\textbf{DQB}(x_c))$$
 
-\noindent\textbf{Principles of operation}
+This function is capable of warping any deformation node in the canonical model into the live frame.
+
+\subsubsection{Principles of operation}
 
 
 There are three key steps that occur in each iteration of the DynamicFusion algorithm, and they each take place whenever a new live frame is produced:
@@ -161,12 +172,12 @@ Additionally, the $\lambda$ parameter can be adjusted to determine the relative 
 
 $E$ is minimised using Gauss-Newton non-linear optimisation.
 
-\item \textbf{Surface fusion}: Using the estimated warp field, both surfaces can be warped back into the canonical model. This means they occupy the same space relative to each other, so can be directly compared.
+\item \textbf{Surface fusion}: Now that the warp function has been obtained, applying its inverse to the live frame will warp it into the canonical model. This means they occupy the same space relative to each other, so can be directly compared.
 
-\item \textbf{Updating the canonical model}: Now that the live frame has been warped into the canonical model, points can be added or removed from the canonical model as appropriate.
+\item \textbf{Updating the canonical model}: Now that the live frame has been warped into the canonical model, points can be added or removed from the canonical model as appropriate. 
 \end{enumerate}
 
-\noindent\textbf{Limitations}
+\subsubsection{Limitations}
 
 DynamicFusion is quite limited by its handling of topology changes; the method is robust to a change from open to closed topology, but if the surface changes from a closed topology to an open one too quickly the system will fail to reconstruct the surface.
 
@@ -175,10 +186,10 @@ It is also limited by unusual changes in motion. For example, it will struggle w
 
 \subsection{VolumeDeform}
 
-VolumeDeform is different to the other examined techniques in that it doesn't rely solely on depth information. It also uses the RGB data probided by the sensor to extract additional information about the live frame.\\ 
+VolumeDeform\cite{volumedeform} is different to the other examined techniques in that it doesn't rely solely on depth information. It also uses the RGB data probided by the sensor to extract additional information about the live frame.\\ 
 
 
-\noindent\textbf{Principles of operation}
+\subsubsection{Principles of operation}
 
 VolumeDeform operates similarly to the other methods outlined, in that it involves a loop that repeatedly acquires new knowledge and integrates it with an existing model.
 
@@ -191,7 +202,7 @@ Additionally, SIFT features are detected in the live frame and stored by the sys
 \item \textbf{Deformation optimisation}: The deformation field is optimised so that it is consistent with the observed values of colour and depth.
 \end{enumerate}
 
-\noindent\textbf{Limitations}
+\subsubsection{Limitations}
 
 VolumeDeform comes with several limitations. Firstly, the feature tracking provided by the SIFT feature descriptor is not adequate when significant transformations are applied. SIFT feature descriptors are robust, but not robust enough given the computational resources available.
 
@@ -200,7 +211,7 @@ Additionally, high levels of deformation are not handled well by the system, due
 
 \subsection{KillingFusion}
 
-KillingFusion operates very similarly to DynamicFusion, but introduces a much more sophisticated error function for estimating the warp field.
+KillingFusion\cite{killingfusion} operates very similarly to DynamicFusion, but introduces a much more sophisticated error function for estimating the warp field.
 
 \begin{align*}
 E_{non-rigid}(\Psi) &= E_{data}(\Psi) + \omega_kE_{Killing}(\Psi) + \omega_sE_{level-set}(\Psi)\\
@@ -221,12 +232,13 @@ The additional parameters $\omega_k$ and $\omega_s$ are used to adjust the relat
 This error function is also much more easily parallelised, leading to greatly increased performance.\\
 
 
-\noindent\textbf{Limitations}
+\subsubsection{Limitations}
 
 KillingFusion has been shown to handle fast inter-frame motion and topological changes much better than alternatives such as DynamicFusion or VolumeDeform. This means that it is more desirable as a solution than the other methods outlined here.
 
 It does however still suffer from the same limitations as all of these methods in that it can only be applied to a small volume until further improvements to the method are made.
 
+\newpage
 \section{Project Plan}
 
 \subsection{Milestones}

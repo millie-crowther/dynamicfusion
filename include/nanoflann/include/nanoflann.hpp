@@ -55,6 +55,7 @@
 #include <cmath>   // for abs()
 #include <cstdlib> // for abs()
 #include <limits>
+#include <math.h>
 
 // Avoid conflicting declaration of min/max macros in windows headers
 #if !defined(NOMINMAX) && (defined(_WIN32) || defined(_WIN32_)  || defined(WIN32) || defined(_WIN64))
@@ -1822,7 +1823,7 @@ namespace nanoflann
 			dataset(inputData), index_params(params), distance(inputData)
 		{
 			if (dataset.kdtree_get_point_count()) throw std::runtime_error("[nanoflann] cannot handle non empty point cloud.");
-			treeCount = std::log2(maximumPointCount);
+			treeCount = log2(maximumPointCount);
 			pointCount = 0U;
 			dim = dimensionality;
 			treeIndex.clear();
