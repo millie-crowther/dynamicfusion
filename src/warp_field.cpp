@@ -22,6 +22,8 @@ warp_field_t::find_neighbours(point_t p){
     p.unpack(query);
 
     // query KD-tree
+    
+    // TODO: this should be after every modification of the node vector
     kd_tree->buildIndex();
     int number_found = kd_tree->knnSearch(query, NUM_NEIGHBOURS, neighbour_indices, neighbour_distances);
     
@@ -63,19 +65,6 @@ warp_field_t::kdtree_get_pt(const size_t idx, int dim) const {
 }
 
 void
-warp_field_t::test_kd_tree(){
-    int n = 100000;
-
-    for (int i = 0; i < n; i++){
-        nodes.push_back(new deform_node_t(this, point_t(0, 0, i), dual_quat_t(), 0));
-    }
-
-    point_t p(0, 0, 500.5f);
-    std::vector<deform_node_t *> nodes = find_neighbours(p);	
- 
-    // clean up
-    for (auto node : nodes){
-        delete node;
-    }
-    nodes.clear();
+warp_field_t::update_warp_field(){
+    kd_tree->buildIndex();
 }

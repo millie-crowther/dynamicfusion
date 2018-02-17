@@ -39,9 +39,6 @@ public:
     bool kdtree_get_bbox(BBOX& bb) const {
         return false;
     }
-
-    // test function
-    void test_kd_tree();
     
     // retrieve the N closest neighbouring nodes from a given point
     std::vector<deform_node_t *> find_neighbours(point_t p);
@@ -59,9 +56,11 @@ private:
     /*
      *  private methods 
      */
-
     // calculate dual-quaternion blending for a given point
     dual_quat_t dual_quaternion_blending(point_t p);    
+
+    // updates the warp field
+    void update_warp_field();
 };
 
 #endif
