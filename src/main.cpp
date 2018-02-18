@@ -1,5 +1,6 @@
 #include "dynamic_fusion.h"
-#include <iostream>
+
+#include <ceres/ceres.h>
 
 int main(){
     dynamic_fusion_t d_fusion;

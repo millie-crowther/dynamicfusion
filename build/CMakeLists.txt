@@ -3,9 +3,12 @@ set (CMAKE_CXX_STANDARD 11)
 
 project(dynamicfusion)
 
+find_package(Ceres REQUIRED)
+
 set(INCLUDE_DIR
     ../include
     ../include/nanoflann/include
+    ${CERES_INCLUDE_DIRS}
 )
 
 include_directories(${INCLUDE_DIR})
@@ -34,3 +37,5 @@ set(SOURCES
 )
 
 add_executable(dynamicfusion ${SOURCES})
+target_link_libraries(dynamicfusion ${CERES_LIBRARIES})
+
